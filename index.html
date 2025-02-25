@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atelier de découverte HTML/CSS/JS</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        header {
+            background-color: #4a76a8;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .share-btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .share-btn:hover {
+            background-color: #27ae60;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 130px);
+        }
+
+        #flems-container {
+            flex: 1;
+            border: none;
+        }
+
+        footer {
+            background-color: #f5f5f5;
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .instructions {
+            background-color: #f8f9fa;
+            padding: 10px 15px;
+            margin: 0;
+            border-bottom: 1px solid #ddd;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Atelier Découverte HTML, CSS et JavaScript</h1>
+        <button onclick="shareCode()" class="share-btn">Partager mon code</button>
+    </header>
+
+    <div class="instructions">
+        <p>🎯 <strong>Objectif :</strong> Expérimentez avec le code HTML, CSS et JavaScript dans cet éditeur interactif.
+        </p>
+    </div>
+
+    <div class="container">
+        <div id="flems-container"></div>
+    </div>
+
+    <footer>
+        Créé avec Flems pour l'apprentissage du développement web
+    </footer>
+
+    <!-- Chargement de Flems -->
+    <script src="https://flems.io/flems.html" type="text/javascript" charset="utf-8"></script>
+    <script>
+        // Sérialiser l'état complet (Flems + paramètres de page)
+        window.serializeCompleteState = function (flemsState, pageParams) {
+            const completeState = {
+                flems: flemsState,
+                page: pageParams
+            };
+
+            // Convertir l'objet en JSON, puis en base64 pour compression/sécurité
+            return btoa(JSON.stringify(completeState));
+        };
+
+        // Désérialiser l'état complet depuis le hash
+        window.deserializeCompleteState = function (hash) {
+            try {
+                // Décoder le base64, puis parser le JSON
+                const jsonState = atob(hash);
+                const completeState = JSON.parse(jsonState);
+
+                // Vérifier la structure attendue
+                if (completeState && completeState.flems) {
+                    return {
+                        flemsState: completeState.flems,
+                        pageParams: completeState.page || {}
+                    };
+                }
+                throw new Error("Format de hash invalide");
+            } catch (e) {
+                console.error("Erreur lors de la désérialisation du hash:", e);
+
+                // Si le hash ne correspond pas à notre format, essayer le format Flems standard
+                try {
+                    return {
+                        flemsState: Flems.deserialize(hash),
+                        pageParams: {}
+                    };
+                } catch (flemsError) {
+                    console.error("Impossible de désérialiser le hash comme état Flems:", flemsError);
+                    return { flemsState: null, pageParams: {} };
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            let flemsState, pageParams;
+
+            // Récupérer le hash et essayer de le désérialiser
+            const hash = window.location.hash.slice(1);
+            if (hash) {
+                // Tenter de désérialiser le hash en format étendu
+                const state = deserializeCompleteState(hash);
+                flemsState = state.flemsState;
+                pageParams = state.pageParams;
+            }
+
+            // Si aucun paramètre de page n'est trouvé dans le hash, vérifier les paramètres d'URL classiques
+            // (pour la rétrocompatibilité)
+            if (!pageParams || Object.keys(pageParams).length === 0) {
+                pageParams = {};
+                const urlParams = new URLSearchParams(window.location.search);
+
+                // Convertir les paramètres d'URL en objet
+                for (const [key, value] of urlParams.entries()) {
+                    pageParams[key] = decodeURIComponent(value);
+                }
+            }
+
+            // Appliquer les paramètres de page
+            applyPageParams(pageParams);
+
+            // État par défaut de Flems si aucun n'est fourni
+            const defaultState = {
+                files: [
+                    {
+                        name: 'index.html',
+                        content: '<!-- Écrivez votre HTML ici -->\n<h1>Bonjour le monde!</h1>\n<p>Modifiez ce code pour commencer.</p>'
+                    },
+                    {
+                        name: 'styles.css',
+                        content: '/* Écrivez votre CSS ici */\nh1 {\n  color: #3498db;\n}\n\np {\n  font-size: 18px;\n}'
+                    },
+                    {
+                        name: 'script.js',
+                        content: '// Écrivez votre JavaScript ici\nconsole.log("Bienvenue dans l\'atelier!");\n\n// Exemple: changer la couleur du texte après 2 secondes\nsetTimeout(() => {\n  document.querySelector("h1").style.color = "green";\n}, 2000);'
+                    }
+                ],
+                links: [],
+                middle: 70,
+                selected: 'index.html',
+                resizable: true,
+                editable: pageParams.readOnly !== 'true',
+                toolbar: pageParams.hideToolbar !== 'true'
+            };
+
+            // Initialiser Flems avec l'état désérialisé ou l'état par défaut
+            window.flems = Flems(
+                document.getElementById('flems-container'),
+                flemsState || defaultState
+            );
+        });
+
+        // Fonction pour appliquer les paramètres de page à l'interface
+        function applyPageParams(params) {
+            // Appliquer le titre personnalisé
+            if (params.title) {
+                document.title = params.title;
+                document.querySelector('header h1').textContent = params.title;
+            }
+
+            // Appliquer les instructions personnalisées
+            if (params.instructions) {
+                document.querySelector('.instructions p').innerHTML = params.instructions;
+            }
+
+            // Appliquer le thème
+            if (params.theme) {
+                applyTheme(params.theme);
+            }
+
+            // Mode lecture seule
+            if (params.readOnly === 'true') {
+                document.querySelector('.share-btn').style.display = 'none';
+            }
+        }
+
+        // Fonction pour appliquer un thème
+        function applyTheme(theme) {
+            let headerBg, headerColor, instructionsBg, footerBg;
+
+            switch (theme) {
+                case 'dark':
+                    headerBg = '#2c3e50';
+                    headerColor = '#ecf0f1';
+                    instructionsBg = '#34495e';
+                    footerBg = '#2c3e50';
+                    document.body.style.backgroundColor = '#1a1a1a';
+                    document.body.style.color = '#ecf0f1';
+                    document.querySelector('.instructions').style.color = '#ecf0f1';
+                    document.querySelector('footer').style.color = '#ecf0f1';
+                    break;
+                case 'blue':
+                    headerBg = '#3498db';
+                    headerColor = 'white';
+                    instructionsBg = '#2980b9';
+                    footerBg = '#3498db';
+                    break;
+                case 'green':
+                    headerBg = '#27ae60';
+                    headerColor = 'white';
+                    instructionsBg = '#2ecc71';
+                    footerBg = '#27ae60';
+                    break;
+                default: // light
+                    headerBg = '#4a76a8';
+                    headerColor = 'white';
+                    instructionsBg = '#f8f9fa';
+                    footerBg = '#f5f5f5';
+            }
+
+            document.querySelector('header').style.backgroundColor = headerBg;
+            document.querySelector('header').style.color = headerColor;
+            document.querySelector('.instructions').style.backgroundColor = instructionsBg;
+            document.querySelector('footer').style.backgroundColor = footerBg;
+        }
+
+        // Fonction de partage
+        window.shareCode = function () {
+            // Récupérer l'état actuel de Flems
+            const currentFlemsState = window.flems.getFlemsState();
+
+            // Récupérer les paramètres de page actuels
+            let pageParams = {};
+
+            // Titre actuel
+            const currentTitle = document.querySelector('header h1').textContent;
+            if (currentTitle !== 'Atelier Découverte HTML, CSS et JavaScript') {
+                pageParams.title = currentTitle;
+            }
+
+            // Instructions actuelles
+            const currentInstructions = document.querySelector('.instructions p').innerHTML;
+            if (currentInstructions !== '🎯 <strong>Objectif :</strong> Expérimentez avec le code HTML, CSS et JavaScript dans cet éditeur interactif.') {
+                pageParams.instructions = currentInstructions;
+            }
+
+            // Thème (détecté par la couleur de fond du header)
+            const headerBg = window.getComputedStyle(document.querySelector('header')).backgroundColor;
+            if (headerBg !== 'rgb(74, 118, 168)') { // Couleur par défaut
+                // Déterminer le thème en fonction de la couleur
+                if (headerBg === 'rgb(44, 62, 80)') pageParams.theme = 'dark';
+                else if (headerBg === 'rgb(52, 152, 219)') pageParams.theme = 'blue';
+                else if (headerBg === 'rgb(39, 174, 96)') pageParams.theme = 'green';
+            }
+
+            // Mode éditable
+            if (!currentFlemsState.editable) {
+                pageParams.readOnly = 'true';
+            }
+
+            // Barre d'outils
+            if (!currentFlemsState.toolbar) {
+                pageParams.hideToolbar = 'true';
+            }
+
+            // Sérialiser l'état complet
+            const serializedState = serializeCompleteState(currentFlemsState, pageParams);
+
+            // Construire l'URL de partage avec le hash étendu
+            const shareURL = `${window.location.origin}${window.location.pathname}#${serializedState}`;
+
+            // Copier l'URL dans le presse-papier
+            navigator.clipboard.writeText(shareURL).then(() => {
+                alert('Lien de partage copié dans le presse-papier!');
+            }).catch(err => {
+                console.error('Erreur lors de la copie:', err);
+                alert('URL de partage:\n' + shareURL);
+            });
+        };
+
+        // Fonction pour créer des liens complets
+        window.createCompleteLink = function (templateState, pageParams = {}) {
+            // S'assurer que l'état fourni contient toutes les propriétés nécessaires
+            const completeState = {
+                middle: 70,
+                selected: templateState.files[0]?.name || 'index.html',
+                resizable: true,
+                editable: pageParams.readOnly === 'true' ? false : true,
+                toolbar: pageParams.hideToolbar === 'true' ? false : true,
+                ...templateState
+            };
+
+            // Sérialiser l'état complet
+            const serializedState = serializeCompleteState(completeState, pageParams);
+
+            // Construire l'URL avec le hash étendu
+            return `${window.location.origin}${window.location.pathname}#${serializedState}`;
+        };
+    </script>
+</body>
+
+</html>
